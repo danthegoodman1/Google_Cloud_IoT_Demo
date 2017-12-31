@@ -31,7 +31,7 @@ I have wired the NodeMCU and DHT22 based on the following image
 image::pictures/breadboard.png[]
 
 To program the NodeMCU, I made use of https://mongoose-os.com/[Mongoose OS] a new system, which I was not aware of
-for my previous experiments. Up to now I'm not certain of this is an advantage
+for my previous experiments. Up to now I'm not certain if this is an advantage
 to my previous method, as describe in a earlier https://github.com/PatrickSteiner/IoT_Sensor_Labs[project].
 Time will tell!
 
@@ -209,3 +209,50 @@ You can verify the above configuration steps by using the https://cloud.google.c
 image::pictures/iot_core_start.png[]
 
 === Connect ESP8266 to Google cloud
+If you have followed me so far, you have an ESP8266 and something in https://cloud.google.com[Google Cloud Platform].
+Let's connect these two!
+
+As mentioned earlier, the ESP8266 is already prepared to send MQTT messages to a
+MQTT-Broker, so all we need to do is to make the ESP8266 aware of https://cloud.google.com[Google Cloud Platform] and
+our artifacts there. To do this, you will have to go into the `Terminal` part of
+the Mongoose OS Web UI
+
+image::pictures/mongoose_terminal.png[]
+
+There you need to enter and run the following command
+```
+mos gcp-iot-setup --gcp-project YOUR_PROJECT_NAME --gcp-region europe-west1 --gcp-registry YOUR_REGISTRY
+```
+this will register your ESP8266 with https://cloud.google.com/iot-core/[Goolge Cloud IoT Core] and
+will define the needed Environment-Variables so the ESP8266 will find the MQTT-Broker provided by https://cloud.google.com/pubsub/[Goolge Cloud PubSub]
+
+In the log-windows of Mongoose OS, you should see lines like
+
+```
+[Dec 31 13:13:23.144] mgos_mqtt_global_con MQTT connecting to mqtt.googleapis.com:8883
+[Dec 31 13:13:28.744] mgos_mqtt_ev         MQTT TCP connect ok (0)
+...
+[Dec 31 13:16:33.977] Published: 0 /devices/esp8266_D608CF/state -> {"hum":49.599998,"temp":25}
+```
+
+You can use the https://cloud.google.com/pubsub/[Goolge Cloud PubSub] Web-UI to verify that the MQTT messages have been received.
+
+* navigate to your https://console.cloud.google.com/iot/[Google Cloud IoT Core] console
+
+image::pictures/open_registry.png[]
+
+* click on your registered device. You should only see one at the moment!
+
+image::pictures/open_device.png[]
+
+* open the tab named `Configuration & state history`
+
+image::pictures/open_state_history.png[]
+
+You should see a list of received messages.
+
+image::pictures/list_of_messages.png[]
+
+If you click on an individual message, you can see it's content in `Base64` and `Text`
+
+image::pictures/message_received.png[]
