@@ -75,3 +75,137 @@ I will use the NodeJS based sample, but you can use the "C" demo as well.
 Last thing to do is to connect the ESP8266 with your WiFi.
 
 image::pictures/wifi_esp.png[]
+
+With the newly flashed firmware on the ESP8266 and the WiFi configured,
+you should see log-messages including your WiFi connection
+
+```
+[Dec 30 19:49:36.037] mgos_wifi_setup_sta  WiFi STA: Connecting to Steiner
+```
+
+as well as the ESP8266 creating and logging data
+
+```
+[Dec 30 19:52:06.776] Tick uptime: 150.851430 {"free_ram":36100,"total_ram":52032}
+[Dec 30 19:52:07.776] Tock uptime: 151.851113 {"free_ram":36100,"total_ram":52032}
+[Dec 30 19:52:08.776] Tick uptime: 152.851563 {"free_ram":36100,"total_ram":52032}
+```
+
+There is more features in the flashed code, but that is for you to discover!
+
+=== Changing the Demo Code
+As this demo is not about teaching NodeJS or ESP8266 programming, we will
+look into the basics of handling the Mongoose OS Web-UI.
+
+To do this, we will stop the Blinking of the ESP8266 LED.
+
+Make sure you are looking at the file `fs/index.js`
+
+image::pictures/change_code.png[]
+
+Find the following code segment and remove or comment it out
+
+```
+GPIO.set_mode(led, GPIO.MODE_OUTPUT);
+...
+let value = GPIO.toggle(led);
+```
+
+you will also have to adjust the following line, as `value` doesn't exist
+anymore.
+
+```
+print(value ? 'Tick' : 'Tock', 'uptime:', Sys.uptime(), getInfo());
+```
+
+There are more lines of code covering the Blink-LED, but for this intro
+exercise, this should suffice.
+
+After having changed the code, we obviously have to safe it.
+
+image::pictures/safe_code.png[]
+
+There are two options to update the code on the ESP8266, a slow and a faster one.
+
+Let's look at the faster one together, so you can find the other one yourself.
+
+All you need to do is to upload the updated code to the ESP8266
+
+image::pictures/code_upload.png[]
+
+In the Log-Window of Mongoose OS Web-UI you see the updated File being uploaded,
+and the ESP8266 being rebooted to start the new firmware.
+
+=== Update ESP8266 Sample code
+I have provided you with updates to the two needed source-files
+
+ * https://github.com/PatrickSteiner/Google_Cloud_IoT_Demo/blob/master/firmware/fs/init.js[fs/index.js]
+ * https://github.com/PatrickSteiner/Google_Cloud_IoT_Demo/blob/master/firmware/mos.yml[mos.yml]
+
+they are updates to the ones from the sample and are extended by code needed
+to read the data from the DHT22 sensor and output this instead of `free_ram` and
+`total_ram`.
+
+=== Configure Google cloud
+Up until now the ESP8266 was programmed to send a jSON based message via MQTT
+to a MQTT-Broker, which didn't exist.
+
+We will be using capbilities provided by https://cloud.google.com[Google Cloud Platform] to provided
+
+* https://cloud.google.com/iot-core/[Goolge Cloud IoT Core]
+
+> Cloud IoT Core is a fully managed service that allows you to easily and securely connect, manage, and ingest data from millions of globally dispersed devices. Cloud IoT Core, in combination with other services on Google Cloud IoT platform, provides a complete solution for collecting, processing, analyzing, and visualizing IoT data in real time to support improved operational efficiency.
+
+* https://cloud.google.com/pubsub/[Goolge Cloud PubSub]
+
+> Cloud Pub/Sub is a simple, reliable, scalable foundation for stream analytics and event-driven computing systems. As part of Google Cloud’s stream analytics solution, the service ingests event streams and delivers them to Cloud Dataflow for processing and BigQuery for analysis as a data warehousing solution.
+
+To be able to use https://cloud.google.com[Google Cloud Platform], you will have to
+perform a few installation and configuration steps.
+
+* Install `gcloud` command for https://cloud.google.com[Google Cloud Platform], based
+on https://cloud.google.com/sdk/downloads[instructions provided by Google].
+* Install some Beta Features via
+```
+$ gcloud components install beta
+```
+* Login to Google Cloud and authenticate yourself
+```
+$ gcloud auth login
+```
+* Create a project in Google Cloud
+```
+$ gcloud projects create YOUR_PROJECT_NAME
+```
+* Make the newly created project to your current project
+```
+$ gcloud config set project YOUR_PROJECT_NAME
+```
+
+The above steps created a generic project in https://cloud.google.com[Google Cloud Platform]. The following
+steps will create needed artifacts for https://cloud.google.com/iot-core/[Goolge Cloud IoT Core] and https://cloud.google.com/pubsub/[Goolge Cloud PubSub]
+
+* Allow IoT Core to publish messages in PubSub
+```
+$ gcloud projects add-iam-policy-binding YOUR_PROJECT_NAME --member=serviceAccount:cloud-iot@system.gserviceaccount.com --role=roles/pubsub.publisher
+```
+* Create a MQTT Topic in PubSub
+```
+$ gcloud beta pubsub topics create iot-topics
+```
+* We can also create a subscription to read messages from a topic. This is not needed at this stage, as we will be sending messages from EPS8266 only, but
+at a later stage.
+```
+$ gcloud beta pubsub subscriptions create --topic iot-topic iot-subscription
+```
+* Create a device registry in https://cloud.google.com/iot-core/[Goolge Cloud IoT Core] to manage
+devices.
+```
+$ gcloud beta iot registries create iot-registry --region europe-west1 --event-pubsub-topic=iot-topic
+```
+
+You can verify the above configuration steps by using the https://cloud.google.com[Google Cloud Platform] Web UI
+
+image::pictures/iot_core_start.png[]
+
+=== Connect ESP8266 to Google cloud
