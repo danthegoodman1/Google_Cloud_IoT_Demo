@@ -181,6 +181,9 @@ $ gcloud projects create YOUR_PROJECT_NAME
 ```
 $ gcloud config set project YOUR_PROJECT_NAME
 ```
+To be able to make proper use of the Google Cloud features, we need to enable *billing* for the
+newly created project. To do so go to https://console.developers.google.com/project/<YOUR_PROJECT_NAME>/settings
+and link the project with your account.
 
 The above steps created a generic project in https://cloud.google.com[Google Cloud Platform]. The following
 steps will create needed artifacts for https://cloud.google.com/iot-core/[Goolge Cloud IoT Core] and https://cloud.google.com/pubsub/[Goolge Cloud PubSub]
@@ -191,7 +194,7 @@ $ gcloud projects add-iam-policy-binding YOUR_PROJECT_NAME --member=serviceAccou
 ```
 * Create a MQTT Topic in PubSub
 ```
-$ gcloud beta pubsub topics create iot-topics
+$ gcloud beta pubsub topics create iot-topic
 ```
 * We can also create a subscription to read messages from a topic. This is not needed at this stage, as we will be sending messages from EPS8266 only, but
 at a later stage.
@@ -256,3 +259,20 @@ image::pictures/list_of_messages.png[]
 If you click on an individual message, you can see it's content in `Base64` and `Text`
 
 image::pictures/message_received.png[]
+
+=== Write received data to file
+If you followed the above steps, you should have seen data coming in via
+MQTT and being displayed in the https://console.cloud.google.com/iot/[Google Cloud IoT Core] Web UI.
+
+In the next step, we plan to take this data and write it into files. For this we
+will be making use of
+
+ * https://cloud.google.com/dataflow/[Google Cloud Dataflow]
+
+> Cloud Dataflow is a fully-managed service for transforming and enriching data in stream (real time) and batch (historical) modes with equal reliability and expressiveness
+
+ * https://cloud.google.com/storage/[Google Cloud Storage]
+
+> Google Cloud Storage is unified object storage for developers and enterprises, from live data serving to data analytics/ML to data archiving.
+
+ 
