@@ -381,3 +381,20 @@ it into a Database. Luckily Google Cloud has something for that as well!
 > https://cloud.google.com/bigquery/[Google BigQuery] is Google's serverless, highly scalable, low cost enterprise data warehouse designed to make all your data analysts productive.
 
 === Create BigQuery Database
+Before we can write data to a https://cloud.google.com/bigquery/[Google BigQuery] Database,
+we need to create one.
+
+Please follow these steps to create the Database:
+
+* Login to the https://bigquery.cloud.google.com/welcome/[BigQuery Console]
+* Create a new dataset
+
+image::pictures/BigQuery_create1.png[]
+
+* Enter all relevant data for the new dataset
+
+image::pictures/BigQuery_create2.png[]
+
+* Create a table within the newly created dataset
+
+image::pictures/BigQuery_create3.png[]
