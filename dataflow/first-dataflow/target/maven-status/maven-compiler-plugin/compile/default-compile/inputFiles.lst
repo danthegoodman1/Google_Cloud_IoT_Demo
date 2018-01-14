@@ -1,0 +1,11 @@
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/ExampleBigQueryTableOptions.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/WriteOneFilePerWindow.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/DebuggingWordCount.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/ExampleOptions.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/ExamplePubsubTopicAndSubscriptionOptions.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/PubSubReader.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/ExampleUtils.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/WindowedWordCount.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/common/ExamplePubsubTopicOptions.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/MinimalWordCount.java
+/Users/psteiner/Documents/RedHat/Demos/IoT_Google/first-dataflow/src/main/java/com/example/WordCount.java

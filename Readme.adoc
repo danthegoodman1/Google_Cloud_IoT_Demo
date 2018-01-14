@@ -275,4 +275,18 @@ will be making use of
 
 > Google Cloud Storage is unified object storage for developers and enterprises, from live data serving to data analytics/ML to data archiving.
 
- 
+==== Create space in Google Cloud Storage
+Please follow the next steps to create space in the https://cloud.google.com/storage/[Google Cloud Storage]
+
+* Enter the https://console.cloud.google.com/storage/[Cloud Storage Console]
+* Create a new *bucket*
+
+image::pictures/create_bucket.png[]
+
+* Define the name of the *bucket*, it's storage class and the region you want
+the data to be saved in.
+
+image::pictures/create_bucket2.png[]
+
+
+https://console.cloud.google.com/storage/
