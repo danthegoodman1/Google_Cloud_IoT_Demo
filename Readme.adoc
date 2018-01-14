@@ -290,7 +290,7 @@ If you click on an individual message, you can see it's content in `Base64` and 
 
 image::pictures/message_received.png[]
 
-=== Write received data to file
+== Write received data to file
 If you followed the above steps, you should have seen data coming in via
 MQTT and being displayed in the https://console.cloud.google.com/iot/[Google Cloud IoT Core] Web UI.
 
@@ -373,3 +373,11 @@ $ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
 To verify that the messages have been processed there are multiple ways, e.g.
 you could look into the Dataflow or look into the bucket, to see if files have
 been created.
+
+== Write received data to BigQuery
+In the previous section we wrote the received data to files, now we will write
+it into a Database. Luckily Google Cloud has something for that as well!
+
+> https://cloud.google.com/bigquery/[Google BigQuery] is Google's serverless, highly scalable, low cost enterprise data warehouse designed to make all your data analysts productive.
+
+=== Create BigQuery Database
