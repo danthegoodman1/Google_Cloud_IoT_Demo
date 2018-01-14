@@ -8,7 +8,7 @@ load('api_dht.js');
 
 let led = Cfg.get('pins.led');
 let button = Cfg.get('pins.button');
-let topic = '/devices/' + Cfg.get('device.id') + '/state';
+let topic = '/devices/' + Cfg.get('device.id') + '/events';
 
 print('LED GPIO:', led, 'button GPIO:', button);
 

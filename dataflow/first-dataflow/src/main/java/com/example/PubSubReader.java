@@ -20,8 +20,11 @@ package com.example;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.joda.time.Duration;
@@ -29,12 +32,36 @@ import org.joda.time.Duration;
 public class PubSubReader {
 
 
+	public interface PubSubOptions extends PipelineOptions {
+		@Description("Path of the file to read from")
+		@Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
+		String getInputFile();
+
+		void setInputFile(String value);
+
+		@Description("PubSub Topic to read data from")
+		@Default.String("projects/iot-demo-psteiner-2018/topics/iot-topic")
+		String getPubSubTopic();
+		void setPubSubTopic(String pubsubTopic);
+		
+		@Description("Path of the file to write to")
+		@Required
+		String getOutput();
+		void setOutput(String value);
+	}	
+	
+	
   public static void main(String[] args) {
-	  PipelineOptions options = PipelineOptionsFactory.create();
+	  PubSubOptions options = PipelineOptionsFactory.fromArgs(args)
+			  										  .withValidation()
+			  										  .as(PubSubOptions.class);
 	  Pipeline p = Pipeline.create(options);
 
-	 p.apply(PubsubIO.readStrings().fromTopic("projects/iot-demo-psteiner-2017/topics/iot-topic"))
-			  .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))))
-			  .apply(TextIO.write().to("gs://iot-demo-psteiner-bucket").withWindowedWrites().withNumShards(1));	  
+	 p.apply(PubsubIO.readStrings().fromTopic(options.getPubSubTopic()))
+	  .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))))
+	  .apply(TextIO.write().to(options.getOutput()).withWindowedWrites().withNumShards(1));
+
+	
+	  p.run();
   }
 }

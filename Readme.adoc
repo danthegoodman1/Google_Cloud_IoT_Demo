@@ -146,6 +146,8 @@ they are updates to the ones from the sample and are extended by code needed
 to read the data from the DHT22 sensor and output this instead of `free_ram` and
 `total_ram`.
 
+== Connecting to the Cloud
+
 === Configure Google cloud
 Up until now the ESP8266 was programmed to send a jSON based message via MQTT
 to a MQTT-Broker, which didn't exist.
@@ -171,7 +173,7 @@ $ gcloud components install beta
 ```
 * Login to Google Cloud and authenticate yourself
 ```
-$ gcloud auth login
+$ gcloud auth application-default login
 ```
 * Create a project in Google Cloud
 ```
@@ -181,6 +183,8 @@ $ gcloud projects create YOUR_PROJECT_NAME
 ```
 $ gcloud config set project YOUR_PROJECT_NAME
 ```
+
+=== Enable Billing
 To be able to make proper use of the Google Cloud features, we need to enable *billing* for the
 newly created project. To do so go to https://console.developers.google.com/project/<YOUR_PROJECT_NAME>/settings
 and link the project with your account.
@@ -188,6 +192,7 @@ and link the project with your account.
 The above steps created a generic project in https://cloud.google.com[Google Cloud Platform]. The following
 steps will create needed artifacts for https://cloud.google.com/iot-core/[Goolge Cloud IoT Core] and https://cloud.google.com/pubsub/[Goolge Cloud PubSub]
 
+=== Manage Permissions
 * Allow IoT Core to publish messages in PubSub
 ```
 $ gcloud projects add-iam-policy-binding YOUR_PROJECT_NAME --member=serviceAccount:cloud-iot@system.gserviceaccount.com --role=roles/pubsub.publisher
@@ -196,8 +201,7 @@ $ gcloud projects add-iam-policy-binding YOUR_PROJECT_NAME --member=serviceAccou
 ```
 $ gcloud beta pubsub topics create iot-topic
 ```
-* We can also create a subscription to read messages from a topic. This is not needed at this stage, as we will be sending messages from EPS8266 only, but
-at a later stage.
+* We can also create a subscription to read messages from a topic.
 ```
 $ gcloud beta pubsub subscriptions create --topic iot-topic iot-subscription
 ```
@@ -210,6 +214,32 @@ $ gcloud beta iot registries create iot-registry --region europe-west1 --event-p
 You can verify the above configuration steps by using the https://cloud.google.com[Google Cloud Platform] Web UI
 
 image::pictures/iot_core_start.png[]
+
+=== Enable Google Cloud APIs
+For many of the tasks we, or our code, will be performing in the next steps, we will
+have to enable https://console.cloud.google.com/apis[Google Cloud APIs].
+
+To do so click the `enable` link
+
+image::pictures/enable_api.png[]
+
+In the search-field enter `Google Compute` and select the found API
+
+image::pictures/enable_compute_api1.png[]
+
+Enable the identified API
+
+image::pictures/enable_compute_api2.png[]
+
+Please continue to do the same with the following APIs
+
+ * Dataflow
+ * Cloud Resource Manager
+ * Logging
+ * Storage
+ * BigQuery
+ * Pub/Sub
+ * ( Google Service Control API )
 
 === Connect ESP8266 to Google cloud
 If you have followed me so far, you have an ESP8266 and something in https://cloud.google.com[Google Cloud Platform].
@@ -288,5 +318,58 @@ the data to be saved in.
 
 image::pictures/create_bucket2.png[]
 
+==== Create Google Dataflow flow
+In this section we will be creation a flow in https://cloud.google.com/dataflow/[Google Cloud Dataflow].
+It will be triggered by incoming MQTT Messages in https://console.cloud.google.com/cloudpubsub[Google Cloud Pub/Sub] and
+will write the received messages in their JSON format into files in https://cloud.google.com/storage/[Google Cloud Storage]
 
-https://console.cloud.google.com/storage/
+I have provided you with a simple project, which you can use and build on. It's
+in the `dataflow/first-dataflow` directory of this https://github.com/PatrickSteiner/Google_Cloud_IoT_Demo/tree/master/dataflow/first-dataflow[Git Repo].
+
+The main codesegement is
+
+```
+public static void main(String[] args) {
+	  PubSubOptions options = PipelineOptionsFactory.fromArgs(args)
+			  										  .withValidation()
+			  										  .as(PubSubOptions.class);
+	  Pipeline p = Pipeline.create(options);
+
+	 p.apply(PubsubIO.readStrings().fromTopic(options.getPubSubTopic()))
+	  .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))))
+	  .apply(TextIO.write().to(options.getOutput()).withWindowedWrites().withNumShards(1));
+
+
+	  p.run();
+  }
+```
+
+To compile and run the code enter the following commands
+
+```
+$ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
+                        -Dexec.args="--project=<Project Name> \
+                        --stagingLocation=<Bucket Name>/staging/ \
+                        --tempLocation=<Bucket Name>/temp \
+                        --output=<Bucket Name>/output/ \
+                        --pubSubTopic=<Name of created topic> \
+                        --runner=DataflowRunner \
+                        --region=europe-west1"
+```
+
+in my case it is
+
+```
+$ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
+                        -Dexec.args="--project=iot-demo-psteiner-2018 \
+                        --stagingLocation=gs://psteiner_iot_bucket/staging/ \
+                        --tempLocation=gs://psteiner_iot_bucket/temp \
+                        --output=gs://psteiner_iot_bucket/output/ \
+                        --pubSubTopic=projects/iot-demo-psteiner-2018/topics/iot-topic  \
+                        --runner=DataflowRunner \
+                        --region=europe-west1"
+```
+
+To verify that the messages have been processed there are multiple ways, e.g.
+you could look into the Dataflow or look into the bucket, to see if files have
+been created.
