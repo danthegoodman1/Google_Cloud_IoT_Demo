@@ -347,6 +347,7 @@ public static void main(String[] args) {
 To compile and run the code enter the following commands
 
 ```
+$ cd first-dataflow
 $ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
                         -Dexec.args="--project=<Project Name> \
                         --stagingLocation=<Bucket Name>/staging/ \
@@ -360,6 +361,7 @@ $ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
 in my case it is
 
 ```
+$ cd first-dataflow
 $ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
                         -Dexec.args="--project=iot-demo-psteiner-2018 \
                         --stagingLocation=gs://psteiner_iot_bucket/staging/ \
@@ -398,3 +400,93 @@ image::pictures/BigQuery_create2.png[]
 * Create a table within the newly created dataset
 
 image::pictures/BigQuery_create3.png[]
+
+[NOTE]
+====
+Please also add a field "timestamp" of type 'timestamp' for my sample code to work!
+====
+
+=== Write to BigQuery Database
+
+The central code has been updated to this
+
+```
+public static void main(String[] args) {
+		PipelineOptionsFactory.register(PubSubOptions.class);
+		PubSubOptions options = PipelineOptionsFactory.fromArgs(args)
+			  										  .withValidation()
+			  										  .as(PubSubOptions.class);
+		Pipeline p = Pipeline.create(options);
+
+		String tableSpec = new StringBuilder()
+		        .append("iot-demo-psteiner-2018:")
+		        .append("iot_data.")
+		        .append("raw_data")
+		        .toString();
+
+		p.apply(PubsubIO.readStrings().fromTopic(options.getPubSubTopic()))
+		 .apply(ParDo.of(new FormatAsTableRowFn()))
+		 .apply(BigQueryIO.writeTableRows().to(tableSpec.toString())
+		          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+		          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+
+		p.run();
+	}
+```
+
+As you can see, besides creating the table-specs, we had to change
+the Dataflow Pipeline. We introduced a step, which took the JSON based
+ESP output and converts it into a BigQuery - TabeRow object. To do so, we make
+use of the `ParDo` Funktions of DataFlow and call a custom written function called
+`FormatAsTableRowFn`.
+
+[NOTE]
+====
+Don't forget to change 'tableSpec' to the name of your BigQuery Database name!
+====
+
+```
+.apply(ParDo.of(new FormatAsTableRowFn())
+```
+
+With the JSON String converted to TabeRow, we can write our data
+into the prepared BigQuery table.
+
+```
+.apply(BigQueryIO.writeTableRows().to(tableSpec.toString())
+             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+```
+
+Run the new DataFlow Pipeline with
+
+```
+$ cd second-dataflow
+$ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
+                        -Dexec.args="--project=<Project Name> \
+                        --stagingLocation=<Bucket Name>/staging/ \
+                        --tempLocation=<Bucket Name>/temp \
+                        --output=<Bucket Name>/output/ \
+                        --pubSubTopic=<Name of created topic> \
+                        --runner=DataflowRunner \
+                        --region=europe-west1"
+```
+
+in my case it is
+
+```
+$ cd second-dataflow
+$ mvn compile exec:java -Dexec.mainClass=com.example.PubSubReader \
+                        -Dexec.args="--project=iot-demo-psteiner-2018 \
+                        --stagingLocation=gs://psteiner_iot_bucket/staging/ \
+                        --tempLocation=gs://psteiner_iot_bucket/temp \
+                        --output=gs://psteiner_iot_bucket/output/ \
+                        --pubSubTopic=projects/iot-demo-psteiner-2018/topics/iot-topic  \
+                        --runner=DataflowRunner \
+                        --region=europe-west1"
+```
+
+You can use https://bigquery.cloud.google.com[BigQuery's] Preview feature to take
+at look at the received data.
+
+image::pictures/view_bigquery_data.png[]

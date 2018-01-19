@@ -147,6 +147,13 @@
   </build>
 
   <dependencies>
+  
+  	<dependency>
+    	<groupId>com.googlecode.json-simple</groupId>
+    	<artifactId>json-simple</artifactId>
+    	<version>1.1</version>
+	</dependency>
+  
     <!-- Adds a dependency on a specific version of the Dataflow SDK. -->
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
