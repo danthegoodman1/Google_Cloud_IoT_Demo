@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -59,47 +60,23 @@ public class PubSubReader {
 		void setOutput(String value);
 	}	
 	
-	// A DoFn that converts a logging-message into a BigQuery table row:
 	@SuppressWarnings("serial")
-	static class FormatStringAsTableRowFn extends DoFn<String, TableRow> {
-    
+	static class FormatMessageAsKV extends DoFn<PubsubMessage, KV<String, String>> {
+		
 		@ProcessElement
 		public void processElement(ProcessContext c) {
-			JSONParser jsonParser = new JSONParser();
-			JSONObject jsonMessage = null;
-			TableRow row = null;
-
-			try {
-				LOG.info(String.format("Message as read from PubSub (%s) ...", c.element()));
-				
-				// Parse the context as a JSON object:
-				jsonMessage = (JSONObject) jsonParser.parse(c.element());	
-				Number hum = (Number)jsonMessage.get("hum");
-				Number temp = (Number)jsonMessage.get("temp");
-
-				// Make a BigQuery row from the JSON object:
-				row = new TableRow()
-//						.set("timestamp",)
-						.set("timestamp", c.timestamp().getMillis()/1000 )
-						.set("humidity", hum.doubleValue() )
-						.set("temp", temp.doubleValue() );
-				
-				LOG.info(String.format("Message (%s) ...", row.toString()));
-
-			} catch (ParseException e) {
-				LOG.warn(String.format("Exception encountered parsing JSON (%s) ...", e));
-
-			} catch (Exception e) {
-				LOG.warn(String.format("Exception: %s", e));
-			} finally {
-				// Output the row:
-				c.output(row);
-			}
+			
+			String key   = c.element().getAttribute("deviceId");
+			String value = new String( c.element().getPayload() );
+			
+			c.output(KV.of(key, value));
 		}
+		
 	}
+    
 	
 	@SuppressWarnings("serial")
-	static class FormatMessageAsTableRowFn extends DoFn<PubsubMessage, TableRow> {
+	static class FormatKVAsTableRowFn extends DoFn<KV<String,String>, TableRow> {
     
 		@ProcessElement
 		public void processElement(ProcessContext c) {
@@ -110,14 +87,15 @@ public class PubSubReader {
 			try {
 				
 				// Parse the context as a JSON object:
-				jsonMessage = (JSONObject) jsonParser.parse( new String( c.element().getPayload() ) );	
+				jsonMessage = (JSONObject) jsonParser.parse( new String( c.element().getValue() ) );	
 				Number hum = (Number)jsonMessage.get("hum");
 				Number temp = (Number)jsonMessage.get("temp");
+				String deviceID = (String)jsonMessage.get("deviceID");
 
 				// Make a BigQuery row from the JSON object:
 				row = new TableRow()
 						.set("timestamp", c.timestamp().getMillis()/1000 )
-						.set("deviceID", c.element().getAttribute("deviceId"))
+						.set("deviceID", deviceID)
 						.set("humidity", hum.doubleValue() )
 						.set("temp", temp.doubleValue() );
 				
@@ -149,7 +127,8 @@ public class PubSubReader {
 		        .toString();	
 		
 		p.apply(PubsubIO.readMessagesWithAttributes().fromTopic(options.getPubSubTopic()))
-		 .apply(ParDo.of(new FormatMessageAsTableRowFn()))
+		 .apply(ParDo.of(new FormatMessageAsKV()))
+		 .apply(ParDo.of(new FormatKVAsTableRowFn()))
 		 .apply(BigQueryIO.writeTableRows().to(tableSpec.toString())
 		          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
 		          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));   		
