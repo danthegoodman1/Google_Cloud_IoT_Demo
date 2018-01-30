@@ -28,7 +28,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -90,7 +94,7 @@ public class PubSubReader {
 				jsonMessage = (JSONObject) jsonParser.parse( new String( c.element().getValue() ) );	
 				Number hum = (Number)jsonMessage.get("hum");
 				Number temp = (Number)jsonMessage.get("temp");
-				String deviceID = (String)jsonMessage.get("deviceID");
+				String deviceID = c.element().getKey();
 
 				// Make a BigQuery row from the JSON object:
 				row = new TableRow()
@@ -125,6 +129,12 @@ public class PubSubReader {
 		        .append("iot_data.")
 		        .append("raw_data")
 		        .toString();	
+			
+		PCollection<PubsubMessage> items = p.apply(PubsubIO.readMessagesWithAttributes().fromTopic(options.getPubSubTopic()));
+		
+		PCollection<KV<String,String>> sliding_windowed_items = items
+				.apply(Window.<PubsubMessage>into(SlidingWindows.of(Duration.standardMinutes(5)).every(Duration.standardSeconds(5))))
+				.apply(ParDo.of(new FormatMessageAsKV()));
 		
 		p.apply(PubsubIO.readMessagesWithAttributes().fromTopic(options.getPubSubTopic()))
 		 .apply(ParDo.of(new FormatMessageAsKV()))
