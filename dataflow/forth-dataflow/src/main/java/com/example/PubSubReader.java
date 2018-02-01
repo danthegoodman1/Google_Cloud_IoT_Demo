@@ -32,6 +32,9 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -74,6 +77,20 @@ public class PubSubReader {
 			String value = new String( c.element().getPayload() );
 			
 			c.output(KV.of(key, value));
+		}
+		
+	}
+    
+
+	@SuppressWarnings("serial")
+	static class LogKVMessage extends DoFn<KV<String, Double>, KV<String, Double>> {
+		
+		@ProcessElement
+		public void processElement(ProcessContext c) {
+			
+			LOG.info(String.format("Message with key (%s) has content (%f) ...", c.element().getKey(), c.element().getValue()));
+			
+			c.output(KV.of(c.element().getKey(), c.element().getValue()));
 		}
 		
 	}
@@ -132,14 +149,60 @@ public class PubSubReader {
 			
 		PCollection<PubsubMessage> items = p.apply(PubsubIO.readMessagesWithAttributes().fromTopic(options.getPubSubTopic()));
 		
-//		PCollection<KV<String,String>> sliding_windowed_items = items
-		items
-//				.apply(Window.<PubsubMessage>into(SlidingWindows.of(Duration.standardMinutes(5)).every(Duration.standardSeconds(5))))
-				.apply(ParDo.of(new FormatMessageAsKV()))
-		 		.apply(ParDo.of(new FormatKVAsTableRowFn()))
-		 		.apply(BigQueryIO.writeTableRows().to(tableSpec.toString())
-		          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-		          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));   		
+		PCollection<KV<String,String>> sliding_windowed_items = items
+				.apply(Window.<PubsubMessage>into(SlidingWindows.of(Duration.standardMinutes(5)).every(Duration.standardSeconds(5))))
+				.apply(ParDo.of(new FormatMessageAsKV()));
+		
+		final TupleTag<KV<String, Double>> temperatureTag = new TupleTag<KV<String, Double>>(){};
+		final TupleTag<KV<String, Double>> humidityTag = new TupleTag<KV<String, Double>>(){};
+		
+		PCollectionTuple results =
+				sliding_windowed_items.apply(ParDo
+			          .of(new DoFn<KV<String, String>, KV<String, Double>>() {
+			        	  
+			        	@SuppressWarnings("unused")
+			        	@ProcessElement
+						public void processElement(ProcessContext c) {
+			        		  String key   = c.element().getKey();
+			        	  
+			        		  JSONParser jsonParser = new JSONParser();
+			      			  JSONObject jsonMessage = null;
+			      			  
+			      			  Number hum=0;
+			      			  Number temp=0;
+			      			  
+			      			  try {
+			      				  // Parse the context as a JSON object:
+			      				  jsonMessage = (JSONObject) jsonParser.parse( new String( c.element().getValue() ) );	
+			      				  hum = (Number)jsonMessage.get("hum");
+			      				  temp = (Number)jsonMessage.get("temp");
+
+			      			  } catch (ParseException e) {
+			      				  LOG.warn(String.format("Exception encountered parsing JSON (%s) ...", e));
+			      			  } catch (Exception e) {
+			      				  LOG.warn(String.format("Exception: %s", e));
+			      			  } finally {
+			      				  // Output to PCollections:
+			    				c.output(KV.of(key, temp.doubleValue()));
+			    				c.output(humidityTag, KV.of(key, hum.doubleValue()));
+			    			}
+			        	  } 
+			          })
+			          .withOutputTags(temperatureTag,    // Specify the tag for the main output.
+			                          TupleTagList.of(humidityTag))); // Specify the tags for the two additional outputs as a TupleTagList.
+			                                      
+		PCollection tempPCollection = results.get(temperatureTag)
+				.apply(ParDo.of(new LogKVMessage()));
+		
+		PCollection humPCollection = results.get(humidityTag)
+				.apply(ParDo.of(new LogKVMessage()));
+		
+		
+		
+//		 		.apply(ParDo.of(new FormatKVAsTableRowFn()))
+//		 		.apply(BigQueryIO.writeTableRows().to(tableSpec.toString())
+//		          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+//		          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));   		
 		
 //		p.apply(PubsubIO.readMessagesWithAttributes().fromTopic(options.getPubSubTopic()))
 //		 .apply(ParDo.of(new FormatMessageAsKV()))
